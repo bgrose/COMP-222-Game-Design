@@ -1,13 +1,12 @@
-## CSCE _ _ _: _ _ _
-Code Written for _ _ _ CSCE _ _ _ Class for _ _ _ of _ _ _.
+## COMP 222 Principles of Computer Games and Implementation
+**Course was taken at University of Liverpool**
+
+Code Written for Dr Konstantinos Tsakalidis COMP 222 Class for Spring of 2022.
 
 **Code for Archival Purposes Only**
 
-**Grade: _ _ _**
-
-Topics Covered: 
-* 
+**Grade: TBC**
 
 
 
-*Developed in VSCode for _ _ _*
+*Developed in VSCode for Java/JMonkeyEngine*
