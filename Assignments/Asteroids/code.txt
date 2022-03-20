@@ -1,0 +1,437 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+//* @class: Asteroids
+//* @brief This class is the creater for asteroids
+//* @author: Bradley Grose
+//* @date: 17/03/2022
+
+public class Asteroid: MonoBehaviour {
+
+  //Collection of Asteroids images
+  public Sprite[] asteroidSprites;
+
+  //Sprite Controls
+  private SpriteRenderer spriteRenderer;
+  private Rigidbody2D rb;
+
+  //Size Holder
+  public float size = 1.0f;
+
+  //Size Constant
+  public readonly float MINSIZE = 70f;
+  public readonly float MAXSIZE = 150f;
+  public readonly float MAXSPLIT = 90f;
+
+  //* @summary: Initialize the asteroid
+  //* @param: none
+  //* @return: none
+  private void Awake() {
+    spriteRenderer = GetComponent < SpriteRenderer > ();
+    rb = GetComponent < Rigidbody2D > ();
+  }
+
+  //* @summary: Initializes the asteroid of random size and shape
+  //* @param: none
+  //* @return: none
+  private void Start() {
+    Awake();
+
+    //Was coded to have multiple sprites but was not used
+    spriteRenderer.sprite = asteroidSprites[Random.Range(0, asteroidSprites.Length)];
+    //Add a random force to the asteroid
+    GetComponent < Rigidbody2D > ().AddForce(new Vector2(Random.Range(400.0f, 600.0f), Random.Range(400.0f, 600.0f)));
+
+    //Checks speed and improves speed if needed
+    if (GetComponent < Rigidbody2D > ().velocity.magnitude < 500.0f) {
+      GetComponent < Rigidbody2D > ().AddForce(new Vector2(Random.Range(500.0f, 700.0f), Random.Range(500.0f, 700.0f)));
+    }
+    transform.eulerAngles = new Vector3(0, 0, Random.Range(0.0f, 360.0f));
+    transform.localScale = Vector3.one * size;
+
+    rb.mass = size;
+  }
+
+  //* @summary: Set Angle for Asteroid
+  //* @param: direction: the angle of the asteroid
+  //* @return: none
+  public void setAngle(Vector2 direction) {
+    //Make speed random
+    float speed = Random.Range(400.0f, 600.0f);
+    rb.AddForce(direction * speed);
+  }
+
+  //* @summary: Splits the asteroid into two smaller asteroids
+  //* @param collision: the collision that occurs
+  //* @return: none
+  private void OnCollisionEnter2D(Collision2D collision) {
+    if (collision.gameObject.tag == "Bullet") {
+      //Adds to Score
+      FindObjectOfType < GameRunner > ().setScore();
+      if (size > MAXSPLIT) {
+        //Break Astroid into two in different directions and speeds
+        for (int i = 0; i < 2; i++) {
+          FindObjectOfType < SpawnElements > ().Spawn(transform.position, transform.eulerAngles.z + Random.Range(0.0f, 270.0f), size * .5f);
+        }
+        Destroy(gameObject);
+      } else {
+        Destroy(gameObject);
+      }
+    }
+  }
+}
+
+-----------------------------------------------------------------------------------
+
+
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+//* @class: Bullet
+//* @brief This class controls bullet element
+//* @author: Bradley Grose
+//* @date: 17/03/2022
+
+public class Bullet: MonoBehaviour {
+
+  //Object Variables
+  private Rigidbody2D rb;
+
+  //Constants
+  public readonly float LIFETIME = 2.0f;
+
+  //* @summary: Initialize the bullet
+  //* @param: none
+  //* @return: none
+  private void Awake() {
+    rb = GetComponent < Rigidbody2D > ();
+  }
+
+  //* @summary: Fires the bullet
+  //* @param direction: the direction the bullet is fired
+  //* @return: none
+  public void Fire(Vector2 direction) {
+    rb.AddForce(direction * 75000.0f);
+    FindObjectOfType < Scene > ().playShoot();
+    Destroy(gameObject, LIFETIME);
+  }
+
+  //* @summary: Destroys the bullet if collision occurs
+  //* @param: collision: the collision that occurs
+  //* @return: none
+  private void OnCollisionEnter2D(Collision2D collision) {
+    Destroy(gameObject);
+  }
+
+}
+
+
+--------------------------------------------------------------
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+
+//* @class: GameRunner
+//* @brief This class controls all functions
+//*        of the game and its rules
+//* @author: Bradley Grose
+//* @date: 17/03/2022
+
+public class GameRunner: MonoBehaviour {
+
+  //Objects to reference
+  public Player player;
+  public ParticleSystem particalSystem;
+  public SpawnElements spawnElements;
+
+  //Display Text
+  public Text scoreText;
+  public Text levelText;
+  public Text gameOver;
+
+  //Constants
+  public readonly float SPAWNTIME = 5.0f;
+
+  //Score Tracker
+  public int score = 0;
+  public int level = 1;
+
+  //* @summary: Player Died reset game
+  //* @param: none
+  //* @return: none
+  public void PlayerDied() {
+    this.particalSystem.transform.position = player.transform.position;
+    this.particalSystem.Play();
+    FindObjectOfType < Scene > ().playGameOver();
+
+    GameOver();
+  }
+
+  //* @summary: Advances to next level
+  //* @param: none
+  //* @return: none
+  public void NextLevel() {
+    //setScore(this.score + 100);
+    setLevel(this.level + 1);
+
+    //Ensure All gone (random bug run into)
+    GameObject[] asteroids = GameObject.FindGameObjectsWithTag("Asteroid");
+    foreach(GameObject asteroid in asteroids) {
+      Destroy(asteroid);
+    }
+
+    //Destory Bullets
+    GameObject[] bullets = GameObject.FindGameObjectsWithTag("Bullet");
+    foreach(GameObject bullet in bullets) {
+      Destroy(bullet);
+    }
+
+    FindObjectOfType < Scene > ().playLevel();
+    Respawn();
+
+  
+  }
+
+  //* @summary: Respawns the player and objects
+  //* @param: none
+  //* @return: none
+  private void Respawn() {
+    //Visual Controls
+    gameOver.gameObject.SetActive(false);
+    player.gameObject.SetActive(true);
+
+    //Sends different directions
+    player.transform.position = new Vector3( - 1650.0f, -750.0f, 0);
+    player.transform.rotation = Quaternion.Euler(0, 0, -45);
+   
+    //Stop all motion on player
+    player.GetComponent<Rigidbody2D>().velocity = Vector2.zero;
+    player.GetComponent<Rigidbody2D>().angularVelocity = 0.0f;
+
+
+    spawnElements.Start();
+    this.player.gameObject.layer = LayerMask.NameToLayer("Immunity");
+
+    // Wait to remove immunity
+    Invoke("removeImmunity", 3.0f);
+  }
+
+  //* @summary: Removes Immunity
+  //* @param: none
+  //* @return: none
+  private void removeImmunity() {
+    this.player.gameObject.layer = LayerMask.NameToLayer("Player");
+  }
+
+  //* @summary: Game Over reset scores and level
+  //* @param: none
+  //* @return: none
+  private void GameOver() {
+    this.gameOver.gameObject.SetActive(true);
+    //Remove all Astroids
+    GameObject[] asteroids = GameObject.FindGameObjectsWithTag("Asteroid");
+    foreach(GameObject asteroid in asteroids) {
+      Destroy(asteroid);
+    }
+
+    // Reset Values
+    spawnElements.SPAWNSTARTMIN = 2.0f;
+    spawnElements.SPAWNSTARTMAX = 4.0f;
+
+    // Wait for New Game
+    Invoke("EndDisplay", SPAWNTIME - 1);
+    Invoke("Respawn", SPAWNTIME);
+
+    FindObjectOfType < Scene > ().playLevel();
+  }
+
+  //* @summary: Waits to Change Score
+  //* @param: none
+  //* @return: none
+  private void EndDisplay() {
+    score = 0;
+    level = 1;
+    scoreText.text = "Score: " + score;
+    levelText.text = "Level: " + level;
+  }
+
+  //* @summary: Sets the score
+  //* @param: none
+  //* @return: none
+  public void setScore() {
+    score = score + 10 * level;
+    scoreText.text = "Score: " + score;
+  }
+
+  //* @summary: Sets the level
+  //* @param: _level: the level to set
+  //* @return: none
+  private void setLevel(int _level) {
+    level = _level;
+    score = score + 100 * level;
+    scoreText.text = "Score: " + score;
+    levelText.text = "Level: " + level;
+
+  }
+
+  //* @summary: Gets the score
+  //* @param: none
+  //* @return: the score
+  public int getScore() {
+    return score;
+  }
+
+  //* @summary: Gets the level
+  //* @param: none
+  //* @return: the level
+  public int getLevel() {
+    return level;
+  }
+
+  //* @summary: Hides Game over Text
+  //* @param: none
+  //* @return: none
+  public void setGameOverOff() {
+    gameOver.gameObject.SetActive(false);
+  }
+
+}
+
+
+--------------------------------------------------------------------
+
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+//* @class: Scene
+//* @brief Runs exit function
+//* @author: Bradley Grose
+//* @date: 17/03/2022
+
+public class Scene : MonoBehaviour
+{
+
+  //Audios
+  public AudioSource Shoot;
+  public AudioSource Level;
+  public AudioSource GameOver;
+
+
+    
+  //* @summary: Quits Game
+  //* @param: none
+  //* @return: none
+  public void QuitGame() {
+    Application.Quit();
+    Debug.unityLogger.Log("Quit Game");
+  }
+
+  public void playShoot() {
+    Shoot.Play();
+  }
+
+  public void playLevel() {
+    Level.Play();
+  }
+
+  public void playGameOver() {
+    GameOver.Play();
+  }
+
+
+}
+
+
+----------------------------------------------------------------
+
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+//* @class: SpawnElements
+//* @brief This class is the spawner for asteroids
+//* @author: Bradley Grose
+//* @date: 17/03/2022
+
+public class SpawnElements: MonoBehaviour {
+
+  //Objects
+  public Asteroid asteroidPrefab;
+
+  //Constants
+  public float SPAWNSTARTMIN = 3;
+  public float SPAWNSTARTMAX = 5;
+
+  //* @summary: Initialize the spawner
+  //* @param: none
+  //* @return: none
+  public void Start() {
+    FindObjectOfType < GameRunner > ().setGameOverOff();
+    int level = FindObjectOfType < GameRunner > ().getLevel();
+
+    //Sets Asteroid Spawn Rate for each level
+    SPAWNSTARTMAX = SPAWNSTARTMAX + ((level - 1) * 2);
+    SPAWNSTARTMIN = SPAWNSTARTMIN + ((level - 1) * 2);
+
+    //Spawns Asteroids
+    for (int i = 0; i < Random.Range(SPAWNSTARTMIN, SPAWNSTARTMAX); i++) {
+      Spawn();
+    }
+    FindObjectOfType < Player > ().setReset();
+  }
+
+  //* @summary: Spawns new asteroid
+  //* @param: none
+  //* @return: none
+  private void Spawn() {
+
+    Vector3 position = createCords();
+    float angle = Random.Range(0.0f, 360.0f);
+    Quaternion rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+    Asteroid asteroid = Instantiate(asteroidPrefab, position, rotation);
+    asteroid.size = Random.Range(asteroid.MINSIZE, asteroid.MAXSIZE);
+    asteroid.setAngle(rotation * position);
+
+  }
+
+  //* @summary: Creates split asteroid
+  //* @param: position: the position of the asteroid
+  //* @param: size: the size of the asteroid
+  //* @param: angle: the angle of the asteroid
+  public void Spawn(Vector3 position, float angle, float size) {
+    Quaternion rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+    Asteroid asteroid = Instantiate(asteroidPrefab, position, rotation);
+    asteroid.size = size;
+    asteroid.setAngle(rotation * position);
+  }
+
+  //* @summary: Creates a random position for the asteroid not by player
+  //* @param: none
+  //* @return: none
+  private Vector3 createCords() {
+    float x = Random.Range( - 1700.0f, 1700.0f);
+    float y = Random.Range( - 800.0f, 800.0f);
+
+    //Checks for spawn in player radius
+    if (x < -1500.0f && y < -600.0f) {
+      return createCords();
+    } else {
+      return new Vector3(x, y, 0);
+    }
+  }
+
+}
+
+----------------------------------------
+end of document
+
+
+
